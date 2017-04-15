@@ -5,3 +5,4 @@ class Triangle extends Asset {
     super();
   }
 }
+a = 1 ** 503

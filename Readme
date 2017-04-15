@@ -1,0 +1,7 @@
+#Realms: A thing that I wrote.
+
+Realms is my super simple first attempt at writing a JavaScript library.
+
+I wanted to do some work with the canvas, and found that there was a lot of talk
+about boilerplate and having to write your own state handling.  Of course there
+are several swell looking libraries out there, but I didn't write them!  
