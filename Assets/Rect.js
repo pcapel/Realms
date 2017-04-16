@@ -10,7 +10,8 @@ class Rect extends Asset {
 
     this.width = w;
     this.height = h;
-    //this.collisionBox set of 4 points describing an area that is the
+    this.centerX = this.x + (w / 2);
+    this.centerY = this.y + (h / 2);
   }
   draw(isFilled=true){
     // let the realm know that this is a drawn asset

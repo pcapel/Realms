@@ -81,6 +81,93 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+var Vector = function () {
+  /*
+  The Vector class is composed of two properties, angle and length, and
+  various mathematical methods associated. The length of the vector is the
+  magnitude of the scalar associated with speed.  Therefore, in a move function
+  the dx/dy would be magnitude * sin(theta) or magnitude * cos(theta).
+  */
+  function Vector(_ref) {
+    var _ref$theta = _ref.theta,
+        theta = _ref$theta === undefined ? 0 : _ref$theta,
+        _ref$magnitude = _ref.magnitude,
+        magnitude = _ref$magnitude === undefined ? 0 : _ref$magnitude;
+
+    _classCallCheck(this, Vector);
+
+    this.theta = theta;
+    this.magnitude = magnitude;
+  }
+
+  _createClass(Vector, [{
+    key: "scale",
+    value: function scale(v, s) {
+      /*
+      perform vector multiplication and return new vector
+      v: vector instance
+      s: scale factor
+      */
+      return new Vector({ x: v.x * s, y: v.y * s });
+    }
+  }, {
+    key: "reciporicate",
+    value: function reciporicate(v) {
+      /*
+      perform a reciporication on the passed vector and return a new vector
+      */
+      return new Vector({ x: v.y, y: v.x });
+    }
+  }], [{
+    key: "add",
+    value: function add(a, b) {
+      /*
+      perform vector addition and return a new vector
+      a/b: separate vector instances
+      */
+      var x = Math.sin(a.theta) * a.magnitude + Math.sin(b.theta) * b.magnitude;
+      var y = Math.cos(a.theta) * a.magnitude + Math.cos(b.theta) * b.magnitude;
+      var magnitude = Math.sqrt(x * x + y * y);
+      var theta = Math.PI / 2 - Math.atan2(y, x);
+      return new Vector({ theta: theta, magnitude: magnitude });
+    }
+  }, {
+    key: "subtract",
+    value: function subtract() {
+      /*
+      perform vector subtraction and return new vector
+      a/b: separate vector instances
+      */
+      return new Vector({ x: a.x - b.x, y: a.y - b.y });
+    }
+  }]);
+
+  return Vector;
+}();
+
+exports.default = Vector;
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _Vector = __webpack_require__(0);
+
+var _Vector2 = _interopRequireDefault(_Vector);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 var Asset = function () {
   /*
   The Asset base class is used for all things that are drawn to the canvas.
@@ -95,6 +182,21 @@ var Asset = function () {
   y: y location of the asset.  Follows the convention set by x.
   ctx: The context of the canvas that the Realm represents.  This is set either
        explicitly by the user, or upon registration of the asset with a Realm.
+   The following properties are mostly implicit, save for some specific methods of interaction.
+   drawn: Boolean set to true when the asset is drawn.  Used to track whether the
+         user is actively looking to draw the asset.
+  type: String of the class name for the asset, used to log errors relating to
+        that asset if the 'name' is not set for it.
+  name: String classifier defined by the user, effectively an ID and a way to grab
+        the asset from the Realm specifically, and is used preferentially in error
+        messages vs the class type.
+         TODO
+  xLimitUpper/
+  xLimitLower/
+  yLimitLower/
+  yLimitUpper: Integer values that are used to define how the user wants the
+               asset to interact with the edges of the Realm to which it is
+               registered.  If the user sets the Realm as
   */
   function Asset() {
     var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
@@ -121,12 +223,17 @@ var Asset = function () {
     this.type = "Asset";
     this.canCollide = canCollide;
     this.canGravity = canGravity;
+    this.canMove = canMove;
     this.ctx = ctx;
-    this.x = x;
-    this.y = y;
+    this.x = this.centerX = x;
+    this.y = this.centerY = y;
     this.drawn = false;
     this.name = name;
     this.Realm = Realm;
+    this.xLimitLower = null;
+    this.xLimitUpper = null;
+    this.yLimitLower = null;
+    this.yLimitUpper = null;
   }
 
   _createClass(Asset, [{
@@ -158,26 +265,70 @@ var Asset = function () {
       return this.ctx.canvas.attributes.width.value;
     }
   }, {
-    key: "respectWalls",
-    value: function respectWalls(_ref2) {
-      var _ref2$top = _ref2.top,
-          top = _ref2$top === undefined ? true : _ref2$top,
-          _ref2$right = _ref2.right,
-          right = _ref2$right === undefined ? true : _ref2$right,
-          _ref2$bottom = _ref2.bottom,
-          bottom = _ref2$bottom === undefined ? true : _ref2$bottom,
-          _ref2$left = _ref2.left,
-          left = _ref2$left === undefined ? true : _ref2$left;
-
+    key: "setXLimitUpper",
+    value: function setXLimitUpper(newLim) {
+      this.xLimitUpper = newLim;
+    }
+  }, {
+    key: "setXLimitLower",
+    value: function setXLimitLower(newLim) {
+      this.xLimitLower = newLim;
+    }
+  }, {
+    key: "setYLimitUpper",
+    value: function setYLimitUpper(newLim) {
+      this.yLimitUpper = newLim;
+    }
+  }, {
+    key: "setYLimitLower",
+    value: function setYLimitLower(newLim) {
+      this.yLimitLower = newLim;
+    }
+  }, {
+    key: "wallBounce",
+    value: function wallBounce() {
       /*
-      used to define the behavior of the asset with respect to 'walls', or the
-      edges of the Realm to which it is registered.
-      the values are used to set limits to the motion.
+      moving object checks for collisions with the boundaries xLimitLower xLimitUpper
+      yLimitLower yLimitUpper and reflects its motion accordingly
       */
-      this.collideTop = top;
-      this.collideRight = right;
-      this.collideLeft = left;
-      this.collideBottom = bottom;
+      var halfWidth = this.width / 2;
+      var halfHeight = this.height / 2;
+      if (this.centerX > this.xLimitUpper - halfWidth) {
+        this.x -= this.centerX - (this.xLimitUpper - halfWidth);
+        this.centerX -= this.centerX - (this.xLimitUpper - halfWidth);
+        this.vector.theta = -this.vector.theta;
+      } else if (this.centerX < 0 + halfWidth) {
+        this.x += halfWidth - this.centerX;
+        this.centerX += halfWidth - this.centerX;
+        this.vector.theta = -this.vector.theta;
+      }
+      if (this.centerY > this.yLimitUpper - halfHeight) {
+        this.y -= this.centerY - (this.yLimitUpper - halfHeight);
+        this.centerY -= this.centerY - (this.yLimitUpper - halfHeight);
+        this.vector.theta = Math.PI - this.vector.theta;
+      } else if (this.centerY < 0 + this.height / 2) {
+        this.y += halfHeight - this.centerY;
+        this.centerY += halfHeight - this.centerY;
+        this.vector.theta = Math.PI - this.vector.theta;
+      }
+    }
+  }, {
+    key: "move",
+    value: function move(gravity, drag) {
+      /*
+      move takes in optional vectors for gravity and drag
+      */
+      if (!this.canMove) {
+        throw Error("You haven't configured this asset for movement");
+      }
+      if (gravity) {
+        this.vector = _Vector2.default.add(this.vector, gravity);
+      }
+      this.x += this.vector.magnitude * Math.sin(this.vector.theta);
+      this.centerX += this.vector.magnitude * Math.sin(this.vector.theta);
+      this.y -= this.vector.magnitude * Math.cos(this.vector.theta);
+      this.centerY -= this.vector.magnitude * Math.cos(this.vector.theta);
+      return null;
     }
   }]);
 
@@ -187,7 +338,7 @@ var Asset = function () {
 exports.default = Asset;
 
 /***/ }),
-/* 1 */
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -207,7 +358,7 @@ var NoRealm = exports.NoRealm = function NoRealm(asset) {
 };
 
 /***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -219,11 +370,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _Asset2 = __webpack_require__(0);
+var _Asset2 = __webpack_require__(1);
 
 var _Asset3 = _interopRequireDefault(_Asset2);
 
-var _Exceptions = __webpack_require__(1);
+var _Exceptions = __webpack_require__(2);
 
 var Exceptions = _interopRequireWildcard(_Exceptions);
 
@@ -252,13 +403,13 @@ var Circle = function (_Asset) {
 
     _classCallCheck(this, Circle);
 
-    console.log('Circle Constructor: ' + x + ', ' + y + ', ' + r);
-
     var _this = _possibleConstructorReturn(this, (Circle.__proto__ || Object.getPrototypeOf(Circle)).call(this, { x: x, y: y, ctx: ctx }));
 
     _this.type = "Circle";
 
     _this.radius = r;
+    _this.width = r;
+    _this.height = r;
     //this.collisionBox set of 4 points describing an area that is the circle's
     return _this;
   }
@@ -292,7 +443,7 @@ var Circle = function (_Asset) {
 exports.default = Circle;
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -304,11 +455,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _Asset2 = __webpack_require__(0);
+var _Asset2 = __webpack_require__(1);
 
 var _Asset3 = _interopRequireDefault(_Asset2);
 
-var _Exceptions = __webpack_require__(1);
+var _Exceptions = __webpack_require__(2);
 
 var Exceptions = _interopRequireWildcard(_Exceptions);
 
@@ -345,7 +496,8 @@ var Rect = function (_Asset) {
 
     _this.width = w;
     _this.height = h;
-    //this.collisionBox set of 4 points describing an area that is the
+    _this.centerX = _this.x + w / 2;
+    _this.centerY = _this.y + h / 2;
     return _this;
   }
 
@@ -375,7 +527,7 @@ var Rect = function (_Asset) {
 exports.default = Rect;
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -387,7 +539,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-var _Vector = __webpack_require__(5);
+var _Vector = __webpack_require__(0);
+
+var _Vector2 = _interopRequireDefault(_Vector);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -416,6 +572,7 @@ var Realm = function () {
     this.state = {};
     this.hitBoxes = [];
     this.registeredAssetsByName = {};
+    this.gravity = new _Vector2.default({ theta: Math.PI, magnitude: 0.002 });
   }
 
   _createClass(Realm, [{
@@ -439,8 +596,12 @@ var Realm = function () {
     key: 'register',
     value: function register() /*assets*/{
       /*
-      accepts a single asset, or an array of assets allowing easier mass
-      registration of assets that are generated programmatically
+      Accepts a single asset, or an array of assets allowing easier mass
+      registration of assets that are generated programmatically.
+      Registering an asset performs a few basic things to it.
+      It, without care, changes the ctx of the asset to the Context stored on the
+      Realm.  It adds itself as the realm object of the asset, and it gives the
+      asset a 0 vector if the asset is movable.
       */
       var args = arguments;
       if (arguments[0] instanceof Array) {
@@ -449,9 +610,21 @@ var Realm = function () {
       var i = 0;
       while (args[i]) {
         var a = args[i];
+
         // do some registering
+        if (a.canMove) {
+          // set up asset movement properties
+          // ** this may be a good thing to make more customizable **
+
+          a.vector = new _Vector2.default({ theta: Math.random() * 10, magnitude: 4 });
+        }
+
         a.ctx = this.Context;
         a.Realm = this;
+        a.setXLimitUpper(this.width);
+        a.setYLimitUpper(this.height);
+        a.setXLimitLower(0);
+        a.setYLimitLower(0);
         this.hitBoxes.push(a.hitBox);
         this.registeredAssetsByName[a.name] = a;
         i++;
@@ -514,15 +687,56 @@ var Realm = function () {
     key: 'eventLoop',
     value: function eventLoop() {
       this.Context.clearRect(0, 0, this.width, this.height);
-      var ball = this.getNamedAsset("game-ball");
-      ball.x += 1;
-      ball.draw();
+      for (var asset in this.registeredAssetsByName) {
+        this.registeredAssetsByName[asset].wallBounce();
+        this.registeredAssetsByName[asset].move(this.gravity);
+        this.registeredAssetsByName[asset].draw();
+      }
       window.requestAnimationFrame(this.eventLoop.bind(this));
     }
   }, {
     key: 'getNamedAsset',
     value: function getNamedAsset(assetName) {
       return this.registeredAssetsByName[assetName];
+    }
+  }, {
+    key: 'asTable',
+    value: function asTable(_ref) {
+      var _ref$walled = _ref.walled,
+          walled = _ref$walled === undefined ? true : _ref$walled;
+
+      /*
+      asTable is an init chain method that sets the perspective of the Realm
+      to an overhead view.
+      walled: boolean indicates that you want the edges of the Realm to act as walls
+      */
+      return this;
+    }
+  }, {
+    key: 'asScreen',
+    value: function asScreen(_ref2) {
+      var _ref2$scrollRight = _ref2.scrollRight,
+          scrollRight = _ref2$scrollRight === undefined ? false : _ref2$scrollRight,
+          _ref2$scrollLeft = _ref2.scrollLeft,
+          scrollLeft = _ref2$scrollLeft === undefined ? false : _ref2$scrollLeft,
+          _ref2$scrollUp = _ref2.scrollUp,
+          scrollUp = _ref2$scrollUp === undefined ? false : _ref2$scrollUp,
+          _ref2$scrollDown = _ref2.scrollDown,
+          scrollDown = _ref2$scrollDown === undefined ? false : _ref2$scrollDown,
+          _ref2$walled = _ref2.walled,
+          walled = _ref2$walled === undefined ? true : _ref2$walled;
+
+      /*
+      asScreen is an init chain method that sets the perspective of the Realm
+      to a front view screen (eg, sidescroller game screen)
+       walled: boolean indicates that the limits of the Realm shoud act as walls.
+       scrollUp/
+      scrollLeft/
+      scrollRight/
+      scrollDown: boolean indicating how the scrolling of the screen should work
+                  during animations.
+      */
+      return this;
     }
   }]);
 
@@ -532,99 +746,44 @@ var Realm = function () {
 exports.default = Realm;
 
 /***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Vector = function () {
-  function Vector() {
-    var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
-    var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-
-    _classCallCheck(this, Vector);
-
-    this.x = x;
-    this.y = y;
-  }
-
-  _createClass(Vector, [{
-    key: "add",
-    value: function add(a, b) {
-      /*
-      perform vector addition and return a new vector
-      a/b: separate vector instances
-      */
-      return new Vector(a.x + b.x, a.y + b.y);
-    }
-  }, {
-    key: "subtract",
-    value: function subtract() {
-      /*
-      perform vector subtraction and return new vector
-      a/b: separate vector instances
-      */
-      return new Vector(a.x - b.x, a.y - b.y);
-    }
-  }, {
-    key: "scale",
-    value: function scale(v, s) {
-      /*
-      perform vector multiplication and return new vector
-      v: vector instance
-      s: scale factor
-      */
-      return new Vector(v.x * s, v.y * s);
-    }
-  }]);
-
-  return Vector;
-}();
-
-exports.default = Vector;
-
-/***/ }),
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-var _Realm = __webpack_require__(4);
+var _Realm = __webpack_require__(5);
 
 var _Realm2 = _interopRequireDefault(_Realm);
 
-var _Circle = __webpack_require__(2);
+var _Circle = __webpack_require__(3);
 
 var _Circle2 = _interopRequireDefault(_Circle);
 
-var _Rect = __webpack_require__(3);
+var _Rect = __webpack_require__(4);
 
 var _Rect2 = _interopRequireDefault(_Rect);
+
+var _Vector = __webpack_require__(0);
+
+var _Vector2 = _interopRequireDefault(_Vector);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var Board = new _Realm2.default('canvas', 0.8, 0.8);
-var Ball = new _Circle2.default({ x: 50, y: 50, r: 5 }).setName('game-ball');
-var Paddle = new _Rect2.default({ x: 150, y: 150, w: 50, h: 15 });
-//.setName('player-paddle');
+//var Ball = new Circle({x:50,y:50,r:5})
+//              .setName('game-ball');
+//window.b = Ball;
+var Paddle = new _Rect2.default({ x: 150, y: 150, w: 50, h: 15 }).setName('player-paddle');
 
-Board.register([Ball, Paddle]);
+for (var i = 0; i < 10; i++) {
+  Board.register(new _Circle2.default({ x: Math.floor(Math.random() * 1000), y: Math.floor(Math.random() * 100), r: 5 }).setName("c" + i));
+}
+
+//Board.register([Paddle]);
 Board.addBorder();
 
-Paddle.setY(Paddle.getRealmY() - Paddle.height);
-
-Paddle.draw();
-Ball.draw();
+window.Board = Board;
 
 Board.animationFrame();
 

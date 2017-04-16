@@ -4,11 +4,12 @@ import * as Exceptions from '../Exceptions';
 
 class Circle extends Asset {
   constructor({x=0,y=0,r=0, ctx=undefined}) {
-    console.log(`Circle Constructor: ${x}, ${y}, ${r}`)
     super({x:x,y:y,ctx:ctx});
     this.type = "Circle";
 
     this.radius = r;
+    this.width = r;
+    this.height = r;
     //this.collisionBox set of 4 points describing an area that is the circle's
   }
   draw(){
