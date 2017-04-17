@@ -4,12 +4,12 @@ import * as Exceptions from '../Exceptions';
 
 class Circle extends Asset {
   constructor({x=0,y=0,r=0, ctx=undefined}) {
-    super({x:x,y:y,ctx:ctx});
+    super(arguments[0]);
     this.type = "Circle";
 
     this.radius = r;
-    this.width = r;
-    this.height = r;
+    this.width = 2 * r;
+    this.height = 2 * r;
     //this.collisionBox set of 4 points describing an area that is the circle's
   }
   draw(){
@@ -21,15 +21,8 @@ class Circle extends Asset {
       throw new Exceptions.NoRealm(this);
     }
     this.ctx.beginPath();
-    this.ctx.arc(this.x, this.y, this.radius, 0, 2*Math.PI);
+    this.ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
     this.ctx.stroke();
-  }
-  _calWidth(r){
-    let d = 2*r;
-
-  }
-  _calHeight(y,r){
-
   }
 }
 

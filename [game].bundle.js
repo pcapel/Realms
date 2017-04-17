@@ -219,7 +219,6 @@ var Asset = function () {
 
     _classCallCheck(this, Asset);
 
-    console.log("Asset Constructor: " + x + ", " + y);
     this.type = "Asset";
     this.canCollide = canCollide;
     this.canGravity = canGravity;
@@ -234,6 +233,7 @@ var Asset = function () {
     this.xLimitUpper = null;
     this.yLimitLower = null;
     this.yLimitUpper = null;
+    this.magnitudeLowerLimit = 0.01;
   }
 
   _createClass(Asset, [{
@@ -268,21 +268,25 @@ var Asset = function () {
     key: "setXLimitUpper",
     value: function setXLimitUpper(newLim) {
       this.xLimitUpper = newLim;
+      return this;
     }
   }, {
     key: "setXLimitLower",
     value: function setXLimitLower(newLim) {
       this.xLimitLower = newLim;
+      return this;
     }
   }, {
     key: "setYLimitUpper",
     value: function setYLimitUpper(newLim) {
       this.yLimitUpper = newLim;
+      return this;
     }
   }, {
     key: "setYLimitLower",
     value: function setYLimitLower(newLim) {
       this.yLimitLower = newLim;
+      return this;
     }
   }, {
     key: "wallBounce",
@@ -297,19 +301,23 @@ var Asset = function () {
         this.x -= this.centerX - (this.xLimitUpper - halfWidth);
         this.centerX -= this.centerX - (this.xLimitUpper - halfWidth);
         this.vector.theta = -this.vector.theta;
+        this.vector.magnitude *= this.elasticity;
       } else if (this.centerX < 0 + halfWidth) {
         this.x += halfWidth - this.centerX;
         this.centerX += halfWidth - this.centerX;
         this.vector.theta = -this.vector.theta;
+        this.vector.magnitude *= this.elasticity;
       }
       if (this.centerY > this.yLimitUpper - halfHeight) {
         this.y -= this.centerY - (this.yLimitUpper - halfHeight);
         this.centerY -= this.centerY - (this.yLimitUpper - halfHeight);
         this.vector.theta = Math.PI - this.vector.theta;
+        this.vector.magnitude *= this.elasticity;
       } else if (this.centerY < 0 + this.height / 2) {
         this.y += halfHeight - this.centerY;
         this.centerY += halfHeight - this.centerY;
         this.vector.theta = Math.PI - this.vector.theta;
+        this.vector.magnitude *= this.elasticity;
       }
     }
   }, {
@@ -321,13 +329,50 @@ var Asset = function () {
       if (!this.canMove) {
         throw Error("You haven't configured this asset for movement");
       }
-      if (gravity) {
+      if (drag !== null) {
+        drag.theta = this.vector.theta + Math.PI;
+        this.vector = _Vector2.default.add(this.vector, drag);
+      }
+      // giving the vector a lower limit is a way to avoid 'brownian drag', drag
+      // causes small motion over time..
+      this.vector.magnitude = this.vector.magnitude > this.magnitudeLowerLimit ? this.vector.magnitude : 0;
+      if (gravity !== null) {
         this.vector = _Vector2.default.add(this.vector, gravity);
       }
       this.x += this.vector.magnitude * Math.sin(this.vector.theta);
       this.centerX += this.vector.magnitude * Math.sin(this.vector.theta);
       this.y -= this.vector.magnitude * Math.cos(this.vector.theta);
       this.centerY -= this.vector.magnitude * Math.cos(this.vector.theta);
+      return null;
+    }
+  }, {
+    key: "setElasticity",
+    value: function setElasticity(e) {
+      this.elasticity = e;
+      return this;
+    }
+  }, {
+    key: "setSpeed",
+    value: function setSpeed(speed) {
+      if (this.vector !== undefined) {
+        this.vector.magnitude = speed;
+      }
+    }
+  }, {
+    key: "setVector",
+    value: function setVector(angle, magnitude) {
+      this.vector = new _Vector2.default({ theta: angle, magnitude: magnitude });
+      return this;
+    }
+  }, {
+    key: "addMethod",
+    value: function addMethod(methodName, method) {
+      this[methodName] = method;
+      return this;
+    }
+  }], [{
+    key: "createGroup",
+    value: function createGroup() {
       return null;
     }
   }]);
@@ -403,13 +448,13 @@ var Circle = function (_Asset) {
 
     _classCallCheck(this, Circle);
 
-    var _this = _possibleConstructorReturn(this, (Circle.__proto__ || Object.getPrototypeOf(Circle)).call(this, { x: x, y: y, ctx: ctx }));
+    var _this = _possibleConstructorReturn(this, (Circle.__proto__ || Object.getPrototypeOf(Circle)).call(this, arguments[0]));
 
     _this.type = "Circle";
 
     _this.radius = r;
-    _this.width = r;
-    _this.height = r;
+    _this.width = 2 * r;
+    _this.height = 2 * r;
     //this.collisionBox set of 4 points describing an area that is the circle's
     return _this;
   }
@@ -427,14 +472,6 @@ var Circle = function (_Asset) {
       this.ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
       this.ctx.stroke();
     }
-  }, {
-    key: '_calWidth',
-    value: function _calWidth(r) {
-      var d = 2 * r;
-    }
-  }, {
-    key: '_calHeight',
-    value: function _calHeight(y, r) {}
   }]);
 
   return Circle;
@@ -490,7 +527,7 @@ var Rect = function (_Asset) {
 
     _classCallCheck(this, Rect);
 
-    var _this = _possibleConstructorReturn(this, (Rect.__proto__ || Object.getPrototypeOf(Rect)).call(this, { x: x, y: y, ctx: ctx }));
+    var _this = _possibleConstructorReturn(this, (Rect.__proto__ || Object.getPrototypeOf(Rect)).call(this, arguments[0]));
 
     _this.type = "Rect";
 
@@ -559,7 +596,8 @@ var Realm = function () {
     this.canvasElem = document.getElementById(elemId);
     this.canvasElem.addEventListener('mousemove', this.setMouseCoord);
     this.canvasElem.addEventListener('mousedown', this.printCoords);
-    document.addEventListener('keydown', this.keyPress);
+    document.addEventListener('keydown', this.keyDown.bind(this));
+    document.addEventListener('keyup', this.keyUp.bind(this));
     this.canvasElem.width = this.width = Math.floor(window.innerWidth * percentWidth);
     this.canvasElem.height = this.height = Math.floor(window.innerHeight * percentHeight);
 
@@ -568,11 +606,24 @@ var Realm = function () {
     this.rightEdge = [[this.width, this.height], [this.width, 0]];
     this.leftEdge = [[0, 0], [0, this.height]];
 
-    this.Context = canvas.getContext('2d');
+    this.Context = this.canvasElem.getContext('2d');
     this.state = {};
     this.hitBoxes = [];
     this.registeredAssetsByName = {};
-    this.gravity = new _Vector2.default({ theta: Math.PI, magnitude: 0.002 });
+    this.registeredKeyDownActions = {};
+    this.registeredKeyUpActions = {};
+    /*
+    registered actions should be an object with keys and the action funciton
+    of a specific instance as the value
+    */
+
+    this.controlledAssetsByName = {};
+
+    this.hasGravity = false;
+    this.gravity = new _Vector2.default({ theta: Math.PI, magnitude: 0.2 });
+
+    this.hasDrag = false;
+    this.drag = new _Vector2.default({ theta: 0, magnitude: 0.01 });
   }
 
   _createClass(Realm, [{
@@ -581,8 +632,54 @@ var Realm = function () {
       console.log(this.mouseX, this.mouseY);
     }
   }, {
-    key: 'keyPress',
-    value: function keyPress(e) {}
+    key: 'keyDown',
+    value: function keyDown(e) {
+      var actionArray = this.registeredKeyDownActions[e.key];
+      if (actionArray !== undefined) {
+        for (var i = 0; i < actionArray.length; i++) {
+          actionArray[i]();
+        }
+      }
+    }
+  }, {
+    key: 'keyUp',
+    value: function keyUp(e) {
+      var actionArray = this.registeredKeyUpActions[e.key];
+      if (actionArray !== undefined) {
+        for (var i = 0; i < actionArray.length; i++) {
+          actionArray[i]();
+        }
+      }
+    }
+  }, {
+    key: 'configureMouse',
+    value: function configureMouse(option) {
+      /*
+      configures the mouse hover
+      */
+      switch (option) {
+        case "crosshair":
+          this.canvasElem.style.cursor = "none";
+          break;
+        default:
+          break;
+      }
+      return this;
+    }
+  }, {
+    key: 'setGravity',
+    value: function setGravity(magnitude) {
+      this.hasGravity = true;
+      this.gravity.magnitude = magnitude;
+      return this;
+    }
+  }, {
+    key: 'setDrag',
+    value: function setDrag(magnitude) {
+      this.hasDrag = true;
+      this.drag.magnitude = magnitude;
+      return this;
+    }
   }, {
     key: 'exert',
     value: function exert(forceFunc, asset) {
@@ -593,8 +690,50 @@ var Realm = function () {
 
     }
   }, {
+    key: 'registerKeyUp',
+    value: function registerKeyUp(keyname, action) {
+      /*
+      keyname: the string value of the key, or array of strings
+      action: function to be invoked on keypress
+      */
+      if (keyname instanceof Array) {
+        for (var i = 0; i < keyname.length; i++) {
+          if (this.registeredKeyUpActions[keyname[i]] === undefined) {
+            this.registeredKeyUpActions[keyname[i]] = [];
+          }
+          this.registeredKeyUpActions[keyname[i]].push(action);
+        }
+      } else {
+        if (this.registeredKeyUpActions[keyname] === undefined) {
+          this.registeredKeyUpActions[keyname] = [];
+        }
+        this.registeredKeyUpActions[keyname].push(action);
+      }
+    }
+  }, {
+    key: 'registerKeyDown',
+    value: function registerKeyDown(keyname, action) {
+      /*
+      keyname: the string value of the key, or list of strings
+      action: function to be invoked on keypress
+      */
+      if (keyname instanceof Array) {
+        for (var i = 0; i < keyname.length; i++) {
+          if (this.registeredKeyDownActions[keyname[i]] === undefined) {
+            this.registeredKeyDownActions[keyname[i]] = [];
+          }
+          this.registeredKeyDownActions[keyname[i]].push(action);
+        }
+      } else {
+        if (this.registeredKeyDownActions[keyname] === undefined) {
+          this.registeredKeyDownActions[keyname] = [];
+        }
+        this.registeredKeyDownActions[keyname].push(action);
+      }
+    }
+  }, {
     key: 'register',
-    value: function register() /*assets*/{
+    value: function register() /*assets, defaultVector*/{
       /*
       Accepts a single asset, or an array of assets allowing easier mass
       registration of assets that are generated programmatically.
@@ -615,8 +754,12 @@ var Realm = function () {
         if (a.canMove) {
           // set up asset movement properties
           // ** this may be a good thing to make more customizable **
-
-          a.vector = new _Vector2.default({ theta: Math.random() * 10, magnitude: 4 });
+          if (a.vector === undefined) {
+            a.vector = new _Vector2.default({ theta: 0, magnitude: 0 });
+          }
+          if (a.elasticity === undefined) {
+            a.elasticity = 0.7;
+          }
         }
 
         a.ctx = this.Context;
@@ -676,7 +819,9 @@ var Realm = function () {
       var color = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "black";
 
       this.canvasElem.style.border = width + " " + style + " " + color;
-      return null;
+      this.canvasElem.style.padding = "none";
+      this.canvasElem.style.margin = "none";
+      return this;
     }
   }, {
     key: 'animationFrame',
@@ -687,9 +832,11 @@ var Realm = function () {
     key: 'eventLoop',
     value: function eventLoop() {
       this.Context.clearRect(0, 0, this.width, this.height);
+      var gravity = this.hasGravity ? this.gravity : null;
+      var drag = this.hasDrag ? this.drag : null;
       for (var asset in this.registeredAssetsByName) {
         this.registeredAssetsByName[asset].wallBounce();
-        this.registeredAssetsByName[asset].move(this.gravity);
+        this.registeredAssetsByName[asset].move(gravity, drag);
         this.registeredAssetsByName[asset].draw();
       }
       window.requestAnimationFrame(this.eventLoop.bind(this));
@@ -764,21 +911,35 @@ var _Rect = __webpack_require__(4);
 
 var _Rect2 = _interopRequireDefault(_Rect);
 
+var _Line = __webpack_require__(7);
+
+var _Line2 = _interopRequireDefault(_Line);
+
 var _Vector = __webpack_require__(0);
 
 var _Vector2 = _interopRequireDefault(_Vector);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var Board = new _Realm2.default('canvas', 0.8, 0.8);
-//var Ball = new Circle({x:50,y:50,r:5})
-//              .setName('game-ball');
-//window.b = Ball;
-var Paddle = new _Rect2.default({ x: 150, y: 150, w: 50, h: 15 }).setName('player-paddle');
+var Board = new _Realm2.default('main', 0.8, 0.8);
+var Ball = new _Circle2.default({ x: 50, y: 50, r: 5 }).setName('game-ball').setElasticity(1);
+var Paddle = new _Rect2.default({ x: Board.width / 2, y: Board.height - 15, w: 50, h: 15 }).setName('player-paddle').setElasticity(0).addMethod('moveLeft', function () {
+             Paddle.vector.theta = -(Math.PI / 2);
+             Paddle.vector.magnitude = 5;
+}).addMethod('moveRight', function () {
+             Paddle.vector.theta = Math.PI / 2;
+             Paddle.vector.magnitude = 5;
+}).addMethod('stop', function () {
+             Paddle.vector.magnitude = 0;
+});
 
-for (var i = 0; i < 10; i++) {
-  Board.register(new _Circle2.default({ x: Math.floor(Math.random() * 1000), y: Math.floor(Math.random() * 100), r: 5 }).setName("c" + i));
-}
+Board.register([Paddle, Ball]);
+
+Board.registerKeyDown("ArrowLeft", Paddle.moveLeft);
+Board.registerKeyDown("ArrowRight", Paddle.moveRight);
+Board.registerKeyUp(["ArrowRight", "ArrowLeft"], Paddle.stop);
+
+Ball.vector = new _Vector2.default({ theta: Math.PI, magnitude: 4 });
 
 //Board.register([Paddle]);
 Board.addBorder();
@@ -786,6 +947,104 @@ Board.addBorder();
 window.Board = Board;
 
 Board.animationFrame();
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _Asset2 = __webpack_require__(1);
+
+var _Asset3 = _interopRequireDefault(_Asset2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var Line = function (_Asset) {
+  _inherits(Line, _Asset);
+
+  function Line(_ref) {
+    var _ref$x = _ref.x1,
+        x1 = _ref$x === undefined ? 0 : _ref$x,
+        _ref$y = _ref.y1,
+        y1 = _ref$y === undefined ? 0 : _ref$y,
+        _ref$x2 = _ref.x2,
+        x2 = _ref$x2 === undefined ? 0 : _ref$x2,
+        _ref$y2 = _ref.y2,
+        y2 = _ref$y2 === undefined ? 0 : _ref$y2,
+        _ref$ctx = _ref.ctx,
+        ctx = _ref$ctx === undefined ? undefined : _ref$ctx;
+
+    _classCallCheck(this, Line);
+
+    var x = (x1 + x2) / 2;
+    var y = (y1 + y2) / 2;
+
+    var _this = _possibleConstructorReturn(this, (Line.__proto__ || Object.getPrototypeOf(Line)).call(this, arguments[0]));
+
+    _this.x = _this.centerX = x; // x and y need to be defined for certain fucntions in the Realm
+    _this.y = _this.centerY = y; // therefore they will be the middle point for the line
+    _this.x1 = x1;
+    _this.y1 = y1;
+    _this.x2 = x2;
+    _this.y2 = y2;
+    _this.ctx = ctx;
+    return _this;
+  }
+
+  _createClass(Line, [{
+    key: "draw",
+    value: function draw() {
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.x1, this.y1);
+      this.ctx.lineTo(this.x2, this.y2);
+      this.ctx.stroke();
+    }
+  }, {
+    key: "move",
+    value: function move(gravity, drag) {
+      /*
+      move takes in optional vectors for gravity and drag
+      */
+      if (!this.canMove) {
+        throw Error("You haven't configured this asset for movement");
+      }
+      if (gravity !== null) {
+        this.vector = Vector.add(this.vector, gravity);
+      }
+      if (drag !== null) {
+        drag.theta = this.vector.theta + Math.PI;
+        this.vector = Vector.add(this.vector, drag);
+      }
+      this.x += this.vector.magnitude * Math.sin(this.vector.theta);
+      this.x1 += this.vector.magnitude * Math.sin(this.vector.theta);
+      this.x2 += this.vector.magnitude * Math.sin(this.vector.theta);
+      this.centerX += this.vector.magnitude * Math.sin(this.vector.theta);
+      this.y -= this.vector.magnitude * Math.cos(this.vector.theta);
+      this.y1 -= this.vector.magnitude * Math.cos(this.vector.theta);
+      this.y2 -= this.vector.magnitude * Math.cos(this.vector.theta);
+      this.centerY -= this.vector.magnitude * Math.cos(this.vector.theta);
+      return null;
+    }
+  }]);
+
+  return Line;
+}(_Asset3.default);
+
+exports.default = Line;
 
 /***/ })
 /******/ ]);

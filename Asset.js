@@ -34,7 +34,6 @@ class Asset {
                registered.  If the user sets the Realm as
   */
   constructor({ x=0, y=0, ctx=undefined, name=undefined, Realm=undefined, canCollide=true, canGravity=true, canMove=true } = {}){
-    console.log(`Asset Constructor: ${x}, ${y}`)
     this.type = "Asset"
     this.canCollide = canCollide;
     this.canGravity = canGravity;
@@ -49,6 +48,7 @@ class Asset {
     this.xLimitUpper = null;
     this.yLimitLower = null;
     this.yLimitUpper = null;
+    this.magnitudeLowerLimit = 0.01;
   }
   setX(newX){
     this.x = newX;
@@ -70,15 +70,19 @@ class Asset {
   }
   setXLimitUpper(newLim) {
     this.xLimitUpper = newLim;
+    return this;
   }
   setXLimitLower(newLim) {
     this.xLimitLower = newLim;
+    return this;
   }
   setYLimitUpper(newLim) {
     this.yLimitUpper = newLim;
+    return this;
   }
   setYLimitLower(newLim) {
     this.yLimitLower = newLim;
+    return this;
   }
   wallBounce() {
     /*
@@ -91,19 +95,23 @@ class Asset {
       this.x -= (this.centerX - (this.xLimitUpper - halfWidth));
       this.centerX -= (this.centerX - (this.xLimitUpper - halfWidth));
       this.vector.theta = -this.vector.theta;
+      this.vector.magnitude *= this.elasticity;
     } else if (this.centerX < 0 + halfWidth) {
       this.x += (halfWidth - this.centerX);
       this.centerX += (halfWidth - this.centerX);
       this.vector.theta = -this.vector.theta;
+      this.vector.magnitude *= this.elasticity
     }
-    if (this.centerY > this.yLimitUpper - halfHeight) {
+    if (this.centerY > (this.yLimitUpper - halfHeight))  {
       this.y -= (this.centerY - (this.yLimitUpper - halfHeight));
       this.centerY -= (this.centerY - (this.yLimitUpper - halfHeight));
       this.vector.theta = Math.PI - this.vector.theta;
+      this.vector.magnitude *= this.elasticity;
     } else if (this.centerY < 0 + (this.height / 2)) {
       this.y += (halfHeight - this.centerY);
       this.centerY += (halfHeight - this.centerY);
       this.vector.theta = Math.PI - this.vector.theta;
+      this.vector.magnitude *= this.elasticity;
     }
   }
   move(gravity, drag) {
@@ -113,7 +121,14 @@ class Asset {
     if (!this.canMove){
       throw Error("You haven't configured this asset for movement")
     }
-    if(gravity){
+    if(drag !== null){
+      drag.theta = this.vector.theta + Math.PI;
+      this.vector = Vector.add(this.vector, drag);
+    }
+    // giving the vector a lower limit is a way to avoid 'brownian drag', drag
+    // causes small motion over time..
+    this.vector.magnitude = (this.vector.magnitude > this.magnitudeLowerLimit) ? this.vector.magnitude : 0;
+    if(gravity !== null){
       this.vector = Vector.add(this.vector, gravity);
     }
     this.x += this.vector.magnitude * Math.sin(this.vector.theta);
@@ -121,6 +136,26 @@ class Asset {
     this.y -= this.vector.magnitude * Math.cos(this.vector.theta);
     this.centerY -= this.vector.magnitude * Math.cos(this.vector.theta);
     return null;
+  }
+  setElasticity(e){
+    this.elasticity = e;
+    return this;
+  }
+  setSpeed(speed) {
+    if (this.vector !== undefined) {
+      this.vector.magnitude = speed;
+    }
+  }
+  setVector(angle, magnitude) {
+    this.vector = new Vector({theta: angle, magnitude: magnitude});
+    return this;
+  }
+  static createGroup() {
+    return null;
+  }
+  addMethod(methodName, method) {
+    this[methodName] = method;
+    return this;
   }
 }
 

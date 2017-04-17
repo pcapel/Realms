@@ -4,8 +4,7 @@ import * as Exceptions from '../Exceptions';
 
 class Rect extends Asset {
   constructor({x=0,y=0,w=0,h=0,ctx=undefined}) {
-
-    super({x:x,y:y,ctx:ctx});
+    super(arguments[0]);
     this.type = "Rect";
 
     this.width = w;

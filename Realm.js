@@ -10,7 +10,8 @@ class Realm {
     this.canvasElem = document.getElementById(elemId);
     this.canvasElem.addEventListener('mousemove', this.setMouseCoord);
     this.canvasElem.addEventListener('mousedown', this.printCoords);
-    document.addEventListener('keydown', this.keyPress);
+    document.addEventListener('keydown', this.keyDown.bind(this));
+    document.addEventListener('keyup', this.keyUp.bind(this));
     this.canvasElem.width = this.width = Math.floor(window.innerWidth * percentWidth);
     this.canvasElem.height = this.height = Math.floor(window.innerHeight * percentHeight);
 
@@ -19,17 +20,66 @@ class Realm {
     this.rightEdge = [[this.width, this.height], [this.width, 0]];
     this.leftEdge = [[0,0], [0,this.height]];
 
-    this.Context = canvas.getContext('2d');
+    this.Context = this.canvasElem.getContext('2d');
     this.state = {};
     this.hitBoxes = [];
     this.registeredAssetsByName = {};
-    this.gravity = new Vector({theta:Math.PI, magnitude:0.002})
+    this.registeredKeyDownActions = {};
+    this.registeredKeyUpActions = {};
+    /*
+    registered actions should be an object with keys and the action funciton
+    of a specific instance as the value
+    */
+
+    this.controlledAssetsByName = {};
+
+    this.hasGravity = false;
+    this.gravity = new Vector({theta: Math.PI, magnitude: 0.2})
+
+    this.hasDrag = false;
+    this.drag = new Vector({theta: 0, magnitude: 0.01})
   }
   printCoords(){
     console.log(this.mouseX, this.mouseY);
   }
-  keyPress(e) {
-
+  keyDown(e) {
+    let actionArray = this.registeredKeyDownActions[e.key];
+    if(actionArray !== undefined){
+      for(let i = 0; i < actionArray.length; i++) {
+        actionArray[i]();
+      }
+    }
+  }
+  keyUp(e) {
+    let actionArray = this.registeredKeyUpActions[e.key];
+    if(actionArray !== undefined){
+      for(let i = 0; i < actionArray.length; i++) {
+        actionArray[i]();
+      }
+    }
+  }
+  configureMouse(option) {
+    /*
+    configures the mouse hover
+    */
+    switch(option) {
+      case "crosshair":
+        this.canvasElem.style.cursor = "none"
+        break;
+      default:
+        break;
+    }
+    return this;
+  }
+  setGravity(magnitude) {
+    this.hasGravity = true;
+    this.gravity.magnitude = magnitude;
+    return this;
+  }
+  setDrag(magnitude) {
+    this.hasDrag = true;
+    this.drag.magnitude = magnitude;
+    return this;
   }
   exert(forceFunc, asset) {
     /*
@@ -38,7 +88,47 @@ class Realm {
     */
 
   }
-  register(/*assets*/){
+  registerKeyUp(keyname, action) {
+    /*
+    keyname: the string value of the key, or array of strings
+    action: function to be invoked on keypress
+    */
+    if (keyname instanceof Array) {
+      for(let i = 0; i < keyname.length; i++) {
+        if(this.registeredKeyUpActions[keyname[i]] === undefined) {
+          this.registeredKeyUpActions[keyname[i]] = [];
+        }
+        this.registeredKeyUpActions[keyname[i]].push(action);
+      }
+    }
+    else {
+      if(this.registeredKeyUpActions[keyname] === undefined) {
+        this.registeredKeyUpActions[keyname] = [];
+      }
+      this.registeredKeyUpActions[keyname].push(action);
+    }
+  }
+  registerKeyDown(keyname, action) {
+    /*
+    keyname: the string value of the key, or list of strings
+    action: function to be invoked on keypress
+    */
+    if (keyname instanceof Array) {
+      for(let i = 0; i < keyname.length; i++) {
+        if(this.registeredKeyDownActions[keyname[i]] === undefined) {
+          this.registeredKeyDownActions[keyname[i]] = [];
+        }
+        this.registeredKeyDownActions[keyname[i]].push(action);
+      }
+    }
+    else {
+      if(this.registeredKeyDownActions[keyname] === undefined) {
+        this.registeredKeyDownActions[keyname] = [];
+      }
+      this.registeredKeyDownActions[keyname].push(action);
+    }
+  }
+  register(/*assets, defaultVector*/){
     /*
     Accepts a single asset, or an array of assets allowing easier mass
     registration of assets that are generated programmatically.
@@ -59,8 +149,12 @@ class Realm {
       if (a.canMove){
         // set up asset movement properties
         // ** this may be a good thing to make more customizable **
-
-        a.vector = new Vector({theta: (Math.random()*10), magnitude:4});
+        if(a.vector === undefined){
+          a.vector = new Vector({theta: 0, magnitude:0});
+        }
+        if (a.elasticity === undefined) {
+          a.elasticity = 0.7;
+        }
       }
 
       a.ctx = this.Context;
@@ -104,16 +198,20 @@ class Realm {
   }
   addBorder(width="1px", style="solid", color="black") {
     this.canvasElem.style.border = width + " " + style + " " + color;
-    return null;
+    this.canvasElem.style.padding = "none";
+    this.canvasElem.style.margin = "none";
+    return this;
   }
   animationFrame() {
     window.requestAnimationFrame(this.eventLoop.bind(this))
   }
   eventLoop() {
     this.Context.clearRect(0,0, this.width,this.height)
+    let gravity = this.hasGravity ? this.gravity : null;
+    let drag = this.hasDrag ? this.drag : null;
     for (let asset in this.registeredAssetsByName){
       this.registeredAssetsByName[asset].wallBounce();
-      this.registeredAssetsByName[asset].move(this.gravity);
+      this.registeredAssetsByName[asset].move(gravity, drag);
       this.registeredAssetsByName[asset].draw();
     }
     window.requestAnimationFrame(this.eventLoop.bind(this))
