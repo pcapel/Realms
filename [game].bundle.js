@@ -619,6 +619,8 @@ var Realm = function () {
 
     this.controlledAssetsByName = {};
 
+    this.collisionCheck = [];
+
     this.hasGravity = false;
     this.gravity = new _Vector2.default({ theta: Math.PI, magnitude: 0.2 });
 
@@ -774,6 +776,25 @@ var Realm = function () {
       }
     }
   }, {
+    key: 'registerCollision',
+    value: function registerCollision(assets) {
+      if (!(assets instanceof Array)) {
+        // raise error
+      }
+    }
+  }, {
+    key: 'assetCollisions',
+    value: function assetCollisions() {
+      /*
+      runs through assets that are registered for collisions
+      with each other and expresses their collision.
+      */
+
+      for (var i = 0; i < this.collisionCheck.length - 1; i++) {
+        this.collisionCheck[i];
+      }
+    }
+  }, {
     key: 'setMouseCoord',
     value: function setMouseCoord(e) {
       this.mouseX = e.clientX;
@@ -784,30 +805,6 @@ var Realm = function () {
     value: function unRegister(asset) {
       /*
       removes the asset's registration details from the realm
-      */
-      return null;
-    }
-  }, {
-    key: 'wallCollision',
-    value: function wallCollision(asset) {
-      /*
-      Checks moving asset for wall collisions and returns bool
-      */
-      return null;
-    }
-  }, {
-    key: 'assetCollision',
-    value: function assetCollision(asset1, asset2) {
-      /*
-      checks two moving assets for collission and returns bool
-      */
-      return null;
-    }
-  }, {
-    key: 'addGravity',
-    value: function addGravity() {
-      /*
-      add gravity to all registered assets who have a true collision setting
       */
       return null;
     }
@@ -836,6 +833,7 @@ var Realm = function () {
       var drag = this.hasDrag ? this.drag : null;
       for (var asset in this.registeredAssetsByName) {
         this.registeredAssetsByName[asset].wallBounce();
+        this.assetCollisions();
         this.registeredAssetsByName[asset].move(gravity, drag);
         this.registeredAssetsByName[asset].draw();
       }
@@ -923,7 +921,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 var Board = new _Realm2.default('main', 0.8, 0.8);
 var Ball = new _Circle2.default({ x: 50, y: 50, r: 5 }).setName('game-ball').setElasticity(1);
-var Paddle = new _Rect2.default({ x: Board.width / 2, y: Board.height - 15, w: 50, h: 15 }).setName('player-paddle').setElasticity(0).addMethod('moveLeft', function () {
+var Paddle = new _Rect2.default({ x: Board.width / 2, y: Board.height - 15, w: 100, h: 15 }).setName('player-paddle').setElasticity(0).addMethod('moveLeft', function () {
              Paddle.vector.theta = -(Math.PI / 2);
              Paddle.vector.magnitude = 5;
 }).addMethod('moveRight', function () {

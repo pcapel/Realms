@@ -33,6 +33,8 @@ class Realm {
 
     this.controlledAssetsByName = {};
 
+    this.collisionCheck = [];
+
     this.hasGravity = false;
     this.gravity = new Vector({theta: Math.PI, magnitude: 0.2})
 
@@ -168,6 +170,22 @@ class Realm {
       i++;
     }
   }
+  registerCollision(assets) {
+    if (!(assets instanceof Array)) {
+      // raise error
+    }
+
+  }
+  assetCollisions() {
+    /*
+    runs through assets that are registered for collisions
+    with each other and expresses their collision.
+    */
+
+    for(let i = 0; i < this.collisionCheck.length - 1; i++) {
+      this.collisionCheck[i]
+    }
+  }
   setMouseCoord(e){
     this.mouseX = e.clientX;
     this.mouseY = e.clientY;
@@ -175,24 +193,6 @@ class Realm {
   unRegister(asset){
     /*
     removes the asset's registration details from the realm
-    */
-    return null;
-  }
-  wallCollision(asset){
-    /*
-    Checks moving asset for wall collisions and returns bool
-    */
-    return null;
-  }
-  assetCollision(asset1, asset2){
-    /*
-    checks two moving assets for collission and returns bool
-    */
-    return null;
-  }
-  addGravity() {
-    /*
-    add gravity to all registered assets who have a true collision setting
     */
     return null;
   }
@@ -211,6 +211,7 @@ class Realm {
     let drag = this.hasDrag ? this.drag : null;
     for (let asset in this.registeredAssetsByName){
       this.registeredAssetsByName[asset].wallBounce();
+      this.assetCollisions()
       this.registeredAssetsByName[asset].move(gravity, drag);
       this.registeredAssetsByName[asset].draw();
     }
